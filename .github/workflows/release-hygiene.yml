@@ -1,0 +1,26 @@
+name: Release Hygiene
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate nudge JSON
+        run: |
+          python -m json.tool core/claude-code/nudges.json >/dev/null
+          python -m json.tool core/gemini-cli/nudges.json >/dev/null
+
+      - name: Run release hygiene checks
+        run: bash tests/release-hygiene.sh
+
+      - name: Run release regression tests
+        run: bash tests/release-regression.sh

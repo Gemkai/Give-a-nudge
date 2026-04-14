@@ -1,0 +1,14 @@
+# Backup files created by installer
+*.nudge-bak
+*.nudge-bak.*
+
+# State and lock files (live in HOME, not repo)
+nudge-state.json
+*.lock
+
+# Gitleaks report output
+gitleaks-report.*
+
+# OS
+.DS_Store
+Thumbs.db

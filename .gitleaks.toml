@@ -1,0 +1,32 @@
+# Gitleaks configuration for Give a Nudge
+# Run: gitleaks detect --source=. --config=.gitleaks.toml
+# Or on full history: gitleaks git --config=.gitleaks.toml .
+
+title = "Give a Nudge"
+
+[extend]
+# Use the default ruleset as the base
+useDefault = true
+
+[[rules]]
+# nudges.json message fields contain 'nudge: ' prefix — not secrets
+id = "nudge-message"
+description = "Nudge messages (not secrets)"
+regex = '''nudge: .+'''
+allowlist.regexTarget = "match"
+allowlist.regexes = ['''nudge: .+''']
+
+[allowlist]
+description = "Known safe patterns in this project"
+regexes = [
+  # State file timestamp values
+  '''\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z''',
+  # jq filter expressions
+  '''\.last_fired\[''',
+  # Shell parameter expansions that look like secrets but aren't
+  '''\$\{STATE_FILE''',
+  '''\$\{HOME\}''',
+]
+paths = [
+  "tests/hook-api-research.md",
+]

@@ -1,0 +1,66 @@
+{
+  "version": "1.0",
+  "environment": "gemini-cli",
+  "nudges": [
+    {
+      "id": "context-clear-session-long",
+      "category": "context_clearing",
+      "trigger": {
+        "event": "tool_use",
+        "condition": "session_duration_minutes >= 45"
+      },
+      "cooldown_minutes": 30,
+      "message": "nudge: long session (45+ min). A fresh context window may improve response quality — consider /compact.",
+      "environments": ["gemini-cli"],
+      "comment": "Fires after 45 minutes of continuous work"
+    },
+    {
+      "id": "usage-tool-count",
+      "category": "usage_monitoring",
+      "trigger": {
+        "event": "tool_use",
+        "condition": "tool_call_count_mod_20 == 0"
+      },
+      "cooldown_minutes": 0,
+      "message": "nudge: 20 tool calls this session. Check token usage if cost-sensitive.",
+      "environments": ["gemini-cli"],
+      "comment": "Fires every 20 tool calls as a usage awareness checkpoint"
+    },
+    {
+      "id": "security-env-file",
+      "category": "security_review",
+      "trigger": {
+        "event": "tool_use",
+        "condition": "last_file_ext == .env"
+      },
+      "cooldown_minutes": 60,
+      "message": "nudge: .env file edited. Run /security-audit before committing to catch exposed secrets.",
+      "environments": ["gemini-cli"],
+      "comment": "Fires when a .env file is written or modified"
+    },
+    {
+      "id": "discovery-session-start",
+      "category": "command_discovery",
+      "trigger": {
+        "event": "session_start",
+        "condition": ""
+      },
+      "cooldown_minutes": 480,
+      "message": "nudge: session started. /scout explores your codebase | /health-monitor checks system state | /doctor runs workspace health check.",
+      "environments": ["gemini-cli"],
+      "comment": "Fires once per work session (8h cooldown) on start"
+    },
+    {
+      "id": "discovery-tool-milestone",
+      "category": "command_discovery",
+      "trigger": {
+        "event": "tool_use",
+        "condition": "tool_call_count_mod_10 == 0"
+      },
+      "cooldown_minutes": 60,
+      "message": "nudge: /simplify reviews your recent changes for quality before presenting. Run it before showing work.",
+      "environments": ["gemini-cli"],
+      "comment": "Fires every 10 tool calls as a quality reminder"
+    }
+  ]
+}
