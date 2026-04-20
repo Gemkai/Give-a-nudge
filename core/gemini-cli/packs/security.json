@@ -1,0 +1,92 @@
+{
+  "version": "1.0",
+  "environment": "gemini-cli",
+  "pack": "security",
+  "requires": "A security-audit skill compatible with your CLI or equivalent manual tooling",
+  "nudges": [
+    {
+      "id": "security-pre-commit-scan",
+      "pack": "security",
+      "tier": "CRITICAL",
+      "category": "security_review",
+      "trigger": {
+        "event": "tool_use",
+        "condition": "write_tool_count >= 3"
+      },
+      "cooldown_minutes": 60,
+      "message": "nudge: 3+ files written — run a security audit before committing to catch exposed secrets, unsafe patterns, and OWASP issues introduced this session — look for or build a security-audit skill.",
+      "environments": ["gemini-cli"],
+      "comment": "Requires a security-audit skill. Fires after 3 write-tool calls as a pre-commit security gate."
+    },
+    {
+      "id": "security-auth-change-gate",
+      "pack": "security",
+      "tier": "CRITICAL",
+      "category": "security_review",
+      "trigger": {
+        "event": "session_start",
+        "condition": ""
+      },
+      "cooldown_minutes": 480,
+      "message": "nudge: if touching auth, sessions, or permissions this session — run a security audit before presenting. Auth changes need adversarial review for bypasses and privilege escalation — look for or build a security-audit skill.",
+      "environments": ["gemini-cli"],
+      "comment": "Requires a security-audit skill. Fires once per session as a pre-task reminder when auth work is planned."
+    },
+    {
+      "id": "security-dependency-audit",
+      "pack": "security",
+      "tier": "HIGH",
+      "category": "security_review",
+      "trigger": {
+        "event": "session_start",
+        "condition": ""
+      },
+      "cooldown_minutes": 1440,
+      "message": "nudge: adding packages this session? Run a CVE audit after any npm install / pip install — look for or build a dependency-audit skill that gates on high/critical findings.",
+      "environments": ["gemini-cli"],
+      "comment": "Requires a dependency-audit skill or manual npm audit / pip-audit. Fires once per day."
+    },
+    {
+      "id": "security-final-scan",
+      "pack": "security",
+      "tier": "HIGH",
+      "category": "security_review",
+      "trigger": {
+        "event": "tool_use",
+        "condition": "write_tool_count >= 5"
+      },
+      "cooldown_minutes": 120,
+      "message": "nudge: 5+ files written — run a final security audit pass before the session ends. Covers secrets, injection vectors, and unsafe subprocess calls — look for or build a security-audit skill.",
+      "environments": ["gemini-cli"],
+      "comment": "Requires a security-audit skill. Fires after 5 write-tool calls as a final-pass gate."
+    },
+    {
+      "id": "security-secrets-reminder",
+      "pack": "security",
+      "tier": "HIGH",
+      "category": "security_review",
+      "trigger": {
+        "event": "tool_use",
+        "condition": "tool_call_count_mod_20 == 0"
+      },
+      "cooldown_minutes": 120,
+      "message": "nudge: 20 tool calls in — grep staged files for secrets before committing: API keys, tokens, and connection strings are the most common accidental leaks.",
+      "environments": ["gemini-cli"],
+      "comment": "Vanilla-compatible reminder; no skill required. Fires every 20 tool calls as a secrets hygiene checkpoint."
+    },
+    {
+      "id": "security-output-encoding",
+      "pack": "security",
+      "tier": "MEDIUM",
+      "category": "security_review",
+      "trigger": {
+        "event": "tool_use",
+        "condition": "write_tool_count >= 3"
+      },
+      "cooldown_minutes": 180,
+      "message": "nudge: new UI output this session? Verify encoding to prevent XSS — look for or build a security-audit skill that checks template output and innerHTML assignments.",
+      "environments": ["gemini-cli"],
+      "comment": "Requires a security-audit skill with XSS detection. Fires after 3 write-tool calls."
+    }
+  ]
+}
