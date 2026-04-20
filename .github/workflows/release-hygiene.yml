@@ -16,8 +16,8 @@ jobs:
 
       - name: Validate nudge JSON
         run: |
-          python -m json.tool core/claude-code/nudges.json >/dev/null
-          python -m json.tool core/gemini-cli/nudges.json >/dev/null
+          python3 -m json.tool core/claude-code/nudges.json >/dev/null
+          python3 -m json.tool core/gemini-cli/nudges.json >/dev/null
 
       - name: Run release hygiene checks
         run: bash tests/release-hygiene.sh
