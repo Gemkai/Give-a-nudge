@@ -1,0 +1,129 @@
+name: Community Catalog Auto Merge
+
+on:
+  workflow_run:
+    workflows:
+      - Community Catalog
+      - Release Hygiene
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge safe community submission PRs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const prRef = run.pull_requests && run.pull_requests[0];
+
+            if (!prRef) {
+              core.notice('No pull request attached to this workflow run.');
+              return;
+            }
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pull_number = prRef.number;
+
+            const { data: pull } = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number,
+            });
+
+            if (pull.state !== 'open') {
+              core.notice(`PR #${pull_number} is not open.`);
+              return;
+            }
+
+            if (pull.draft) {
+              core.notice(`PR #${pull_number} is still a draft.`);
+              return;
+            }
+
+            if (pull.head.sha !== run.head_sha) {
+              core.notice(`PR #${pull_number} head moved to ${pull.head.sha}; waiting for fresh checks.`);
+              return;
+            }
+
+            if (!['main', 'master'].includes(pull.base.ref)) {
+              core.notice(`PR #${pull_number} targets ${pull.base.ref}; skipping auto-merge.`);
+              return;
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number,
+              per_page: 100,
+            });
+
+            const allowedPath = /^community\/submissions\/[a-z0-9][a-z0-9-]{1,63}\/nudge\.json$/;
+            const invalidFiles = files.filter((file) => {
+              return !allowedPath.test(file.filename) || !['added', 'modified'].includes(file.status);
+            });
+
+            if (files.length === 0) {
+              core.notice(`PR #${pull_number} has no changed files.`);
+              return;
+            }
+
+            if (invalidFiles.length > 0) {
+              core.notice(
+                `PR #${pull_number} is not in the auto-merge lane: ${invalidFiles
+                  .map((file) => `${file.filename} (${file.status})`)
+                  .join(', ')}`
+              );
+              return;
+            }
+
+            const workflowRuns = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
+              owner,
+              repo,
+              head_sha: pull.head.sha,
+              event: 'pull_request',
+              per_page: 100,
+            });
+
+            const requiredWorkflows = ['Community Catalog', 'Release Hygiene'];
+            const missing = requiredWorkflows.filter((name) => {
+              return !workflowRuns.some((workflowRun) => workflowRun.name === name && workflowRun.conclusion === 'success');
+            });
+
+            if (missing.length > 0) {
+              core.notice(`PR #${pull_number} is still waiting on workflows: ${missing.join(', ')}`);
+              return;
+            }
+
+            try {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: pull_number,
+                labels: ['community-catalog', 'auto-merged'],
+              });
+            } catch (error) {
+              core.notice(`Could not apply labels to PR #${pull_number}: ${error.message}`);
+            }
+
+            try {
+              await github.rest.pulls.merge({
+                owner,
+                repo,
+                pull_number,
+                merge_method: 'squash',
+              });
+              core.notice(`Merged PR #${pull_number} through the safe community catalog lane.`);
+            } catch (error) {
+              core.setFailed(`Failed to merge PR #${pull_number}: ${error.message}`);
+            }

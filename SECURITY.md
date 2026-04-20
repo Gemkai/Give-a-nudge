@@ -50,4 +50,5 @@ High/Critical.
 - State file writes are repaired on invalid JSON, then written atomically via temp file + replace under a lock directory
 - Hook scripts use `printf '%s\n'` instead of `echo` to prevent `-n`/`-e` flag injection
 - Inline Python helpers pass dynamic values as arguments, not interpolated source, so community nudge IDs cannot become executable code
-- Community nudge submissions should be validated by CI against the schema in `community/SUBMIT.md`
+- Community catalog entries are not installed or executed automatically; users must opt in manually
+- Community nudge submissions should be validated by CI against the schema and policy checks in `tests/validate-community-submissions.py`

@@ -3,19 +3,93 @@
   "environment": "gemini-cli",
   "nudges": [
     {
+      "id": "security-env-file",
+      "pack": "starter",
+      "tier": "CRITICAL",
+      "category": "security_review",
+      "trigger": {
+        "event": "tool_use",
+        "condition": "last_file_ext == .env"
+      },
+      "cooldown_minutes": 60,
+      "message": "nudge: .env file edited. Before committing: verify .env is in .gitignore and grep staged files for secrets — look for or build a security-audit skill to automate this scan.",
+      "environments": ["gemini-cli"],
+      "comment": "Fires when a .env file is written or modified"
+    },
+    {
+      "id": "lessons-compact-number-loss",
+      "pack": "starter",
+      "tier": "HIGH",
+      "category": "context_clearing",
+      "trigger": {
+        "event": "tool_use",
+        "condition": "context_pct >= 60"
+      },
+      "cooldown_minutes": 60,
+      "message": "nudge: context at 60%+. Before compressing: copy out any exact numbers, IDs, or dates — summarization silently drops specific values.",
+      "environments": ["gemini-cli"],
+      "comment": "Lesson learned: context summarization loses numeric values, percentages, and specific dates"
+    },
+    {
+      "id": "lessons-multifile-review-dilution",
+      "pack": "starter",
+      "tier": "HIGH",
+      "category": "usage_monitoring",
+      "trigger": {
+        "event": "tool_use",
+        "condition": "write_tool_count >= 5"
+      },
+      "cooldown_minutes": 120,
+      "message": "nudge: 5+ files written this session. Reviewing all at once dilutes quality — per-file passes first, then one integration pass.",
+      "environments": ["gemini-cli"],
+      "comment": "Lesson learned: reviewing 5+ files in one pass causes attention dilution and contradictory feedback"
+    },
+    {
+      "id": "lessons-global-vs-project-scope",
+      "pack": "starter",
+      "tier": "HIGH",
+      "category": "security_review",
+      "trigger": {
+        "event": "session_start",
+        "condition": ""
+      },
+      "cooldown_minutes": 2880,
+      "message": "nudge: mixing config and app work? Global tooling changes (settings, hooks, MCP config) don't belong in project repos — verify scope before committing.",
+      "environments": ["gemini-cli"],
+      "comment": "Lesson learned: global infra work done in a project context nearly committed config changes to a project repo"
+    },
+    {
+      "id": "workflow-commit-reminder",
+      "pack": "starter",
+      "tier": "HIGH",
+      "category": "usage_monitoring",
+      "trigger": {
+        "event": "tool_use",
+        "condition": "write_tool_count >= 3"
+      },
+      "cooldown_minutes": 60,
+      "message": "nudge: 3+ files edited. Commit before context resets — uncommitted work is invisible to the next session.",
+      "environments": ["gemini-cli"],
+      "comment": "Fires after 3 write-tool calls; reminds user to checkpoint work in git"
+    },
+    {
       "id": "context-clear-session-long",
+      "pack": "starter",
+      "tier": "MEDIUM",
       "category": "context_clearing",
       "trigger": {
         "event": "tool_use",
         "condition": "session_duration_minutes >= 45"
       },
       "cooldown_minutes": 30,
-      "message": "nudge: long session (45+ min). A fresh context window may improve response quality — consider /compact.",
+      "message": "nudge: long session (45+ min). A fresh context window may improve response quality — start a new session or check if your CLI supports context compression.",
       "environments": ["gemini-cli"],
       "comment": "Fires after 45 minutes of continuous work"
     },
     {
       "id": "usage-tool-count",
+      "pack": "starter",
+      "tier": "MEDIUM",
       "category": "usage_monitoring",
       "trigger": {
         "event": "tool_use",
@@ -27,40 +101,158 @@
       "comment": "Fires every 20 tool calls as a usage awareness checkpoint"
     },
     {
-      "id": "security-env-file",
-      "category": "security_review",
-      "trigger": {
-        "event": "tool_use",
-        "condition": "last_file_ext == .env"
-      },
-      "cooldown_minutes": 60,
-      "message": "nudge: .env file edited. Run /security-audit before committing to catch exposed secrets.",
-      "environments": ["gemini-cli"],
-      "comment": "Fires when a .env file is written or modified"
-    },
-    {
       "id": "discovery-session-start",
+      "pack": "starter",
+      "tier": "MEDIUM",
       "category": "command_discovery",
       "trigger": {
         "event": "session_start",
         "condition": ""
       },
       "cooldown_minutes": 480,
-      "message": "nudge: session started. /scout explores your codebase | /health-monitor checks system state | /doctor runs workspace health check.",
+      "message": "nudge: session started. Try asking your CLI to map the codebase, summarize recent git changes, or run a workspace health check — look for or build codebase-exploration and health-check skills.",
       "environments": ["gemini-cli"],
       "comment": "Fires once per work session (8h cooldown) on start"
     },
     {
       "id": "discovery-tool-milestone",
+      "pack": "starter",
+      "tier": "MEDIUM",
       "category": "command_discovery",
       "trigger": {
         "event": "tool_use",
         "condition": "tool_call_count_mod_10 == 0"
       },
       "cooldown_minutes": 60,
-      "message": "nudge: /simplify reviews your recent changes for quality before presenting. Run it before showing work.",
+      "message": "nudge: ask your CLI to review recent changes for over-complexity, dead code, and unnecessary abstractions before presenting — look for or build a simplify skill.",
       "environments": ["gemini-cli"],
       "comment": "Fires every 10 tool calls as a quality reminder"
+    },
+    {
+      "id": "lessons-subagent-token-cost",
+      "pack": "starter",
+      "tier": "MEDIUM",
+      "category": "usage_monitoring",
+      "trigger": {
+        "event": "session_start",
+        "condition": ""
+      },
+      "cooldown_minutes": 1440,
+      "message": "nudge: sub-agents cost 7-10x more tokens than inline work — reserve them for audits and isolated deep-dives.",
+      "environments": ["gemini-cli"],
+      "comment": "Lesson learned: each sub-agent loads a full independent context, making them expensive for routine tasks"
+    },
+    {
+      "id": "lessons-mcp-preinstall",
+      "pack": "starter",
+      "tier": "MEDIUM",
+      "category": "usage_monitoring",
+      "trigger": {
+        "event": "session_start",
+        "condition": ""
+      },
+      "cooldown_minutes": 4320,
+      "message": "nudge: adding an MCP server? Pre-install the package globally first — npx auto-install triggers registry checks that cause random startup failures.",
+      "environments": ["gemini-cli"],
+      "comment": "Lesson learned: npx -y MCP startup adds ~1.5s network latency per server; multiple servers can fail under tight startup deadlines"
+    },
+    {
+      "id": "info-compact-clear-cycle",
+      "pack": "starter",
+      "tier": "MEDIUM",
+      "category": "context_clearing",
+      "trigger": {
+        "event": "tool_use",
+        "condition": "session_duration_minutes >= 45"
+      },
+      "cooldown_minutes": 120,
+      "message": "nudge: repeated context compressions degrade quality — after 3-4 cycles, start a fresh session instead for cleaner results.",
+      "environments": ["gemini-cli"],
+      "comment": "After repeated context resets, a fresh session beats another compression pass"
+    },
+    {
+      "id": "workflow-session-handoff",
+      "pack": "starter",
+      "tier": "MEDIUM",
+      "category": "context_clearing",
+      "trigger": {
+        "event": "tool_use",
+        "condition": "session_duration_minutes >= 45"
+      },
+      "cooldown_minutes": 120,
+      "message": "nudge: long session — before ending, ask for a 200-300 word handoff summary covering what changed, what's pending, and any open risks.",
+      "environments": ["gemini-cli"],
+      "comment": "Fires after 45 min; prompts user to capture session state before context is lost"
+    },
+    {
+      "id": "workflow-subagent-context",
+      "pack": "starter",
+      "tier": "MEDIUM",
+      "category": "usage_monitoring",
+      "trigger": {
+        "event": "session_start",
+        "condition": ""
+      },
+      "cooldown_minutes": 2880,
+      "message": "nudge: sub-agents don't inherit session context — include all required data explicitly in Task prompts. Missing context = silent wrong output.",
+      "environments": ["gemini-cli"],
+      "comment": "Fires once per 2 days; reminds user of subagent context isolation before they hit it"
+    },
+    {
+      "id": "workflow-plan-multistep",
+      "pack": "starter",
+      "tier": "MEDIUM",
+      "category": "usage_monitoring",
+      "trigger": {
+        "event": "tool_use",
+        "condition": "write_tool_count >= 3"
+      },
+      "cooldown_minutes": 120,
+      "message": "nudge: multiple files edited — if no plan exists yet, capture goal and steps before continuing to prevent goal drift.",
+      "environments": ["gemini-cli"],
+      "comment": "Fires after 3 write-tool calls; prompts lightweight planning before mid-task context loss"
+    },
+    {
+      "id": "info-line-number-reference",
+      "pack": "starter",
+      "tier": "INFO",
+      "category": "usage_monitoring",
+      "trigger": {
+        "event": "tool_use",
+        "condition": "tool_call_count_mod_10 == 0"
+      },
+      "cooldown_minutes": 120,
+      "message": "nudge: files already in context? Reference path + line range instead of re-pasting — avoids duplicate token spend.",
+      "environments": ["gemini-cli"],
+      "comment": "Heavy edit sessions often re-paste large files; path+line range is cheaper. Uses tool_call_count since Gemini runner does not track write_tool_count."
+    },
+    {
+      "id": "info-suppress-explanations",
+      "pack": "starter",
+      "tier": "INFO",
+      "category": "usage_monitoring",
+      "trigger": {
+        "event": "tool_use",
+        "condition": "session_duration_minutes >= 30"
+      },
+      "cooldown_minutes": 180,
+      "message": "nudge: in a code-heavy session? Adding 'no explanations, just the code' to prompts saves 30-50% response tokens.",
+      "environments": ["gemini-cli"],
+      "comment": "Prompt tip: suppressing explanations significantly reduces output tokens in implementation sessions. Uses session_duration since Gemini runner does not track write_tool_count."
+    },
+    {
+      "id": "info-mcp-prune-session",
+      "pack": "starter",
+      "tier": "INFO",
+      "category": "usage_monitoring",
+      "trigger": {
+        "event": "session_start",
+        "condition": ""
+      },
+      "cooldown_minutes": 1440,
+      "message": "nudge: idle MCP servers inject tool definitions into every message — disconnect any you are not using this session.",
+      "environments": ["gemini-cli"],
+      "comment": "Each connected MCP server adds tool definitions to every prompt turn regardless of use"
     }
   ]
 }

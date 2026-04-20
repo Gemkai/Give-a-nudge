@@ -347,6 +347,12 @@ done
 test_installer_preserves_invalid_settings
 test_installer_registers_claude_session_start_and_notify_helpers
 
+if bash tests/validate-community-submissions.sh; then
+  pass "community submission validation passes"
+else
+  fail "community submission validation passes"
+fi
+
 if bash tests/release-hygiene.sh; then
   pass "release hygiene checks pass"
 else

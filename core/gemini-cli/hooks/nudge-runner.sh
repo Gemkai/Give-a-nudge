@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NUDGES_JSON="${SCRIPT_DIR}/../nudges.json"
 STATE_FILE="${STATE_FILE:-${HOME}/.${APP_TYPE}/nudge-state.json}"
 LOCK_DIR="${STATE_FILE}.lockdir"
-DEFAULT_STATE_JSON='{"last_fired":{},"session_tool_count":0,"session_start_time":""}'
+DEFAULT_STATE_JSON='{"last_fired":{},"session_tool_count":0,"session_start_time":"","write_tool_count":0,"nudge_streak":{"id":"","count":0}}'
 
 HAS_JQ=false
 if command -v jq >/dev/null 2>&1; then
@@ -229,16 +229,19 @@ state_action_jq() {
       ;;
     prepare)
       local event_name="$1"
+      local tool_name="${2:-}"
       local now
       now="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
       local tmp
       tmp="$(mktemp "${STATE_FILE}.XXXXXX")" || return 1
-      jq --arg now "$now" --arg event "$event_name" '
+      jq --arg now "$now" --arg event "$event_name" --arg tool "$tool_name" '
         .last_fired = (.last_fired // {})
         | .session_tool_count = (.session_tool_count // 0)
         | .session_start_time = (.session_start_time // "")
+        | .write_tool_count = (.write_tool_count // 0)
         | if .session_start_time == "" then .session_start_time = $now else . end
         | if $event == "tool_use" then .session_tool_count += 1 else . end
+        | if ($event == "tool_use" and ($tool == "Write" or $tool == "Edit" or $tool == "MultiEdit" or $tool == "NotebookEdit")) then .write_tool_count += 1 else . end
       ' "$STATE_FILE" > "$tmp" 2>/dev/null && mv "$tmp" "$STATE_FILE" || {
         rm -f "$tmp"
         return 1
@@ -250,6 +253,23 @@ state_action_jq() {
       ;;
     get_session_start)
       jq -r '.session_start_time // ""' "$STATE_FILE" 2>/dev/null || printf '\n'
+      ;;
+    get_write_count)
+      jq -r '.write_tool_count // 0' "$STATE_FILE" 2>/dev/null || printf '0\n'
+      ;;
+    get_streak)
+      jq -r '(.nudge_streak // {"id":"","count":0}) | "\(.id) \(.count)"' "$STATE_FILE" 2>/dev/null || printf ' 0\n'
+      ;;
+    set_streak)
+      local nid="$1"
+      local tmp
+      tmp="$(mktemp "${STATE_FILE}.XXXXXX")" || return 1
+      jq --arg id "$nid" '
+        .nudge_streak = (.nudge_streak // {"id":"","count":0})
+        | if .nudge_streak.id == $id then .nudge_streak.count += 1
+          else .nudge_streak = {"id":$id,"count":1} end
+      ' "$STATE_FILE" > "$tmp" 2>/dev/null && mv "$tmp" "$STATE_FILE" || { rm -f "$tmp"; return 1; }
+      printf 'ok\n'
       ;;
     claim)
       local nudge_id="$1"
@@ -303,7 +323,7 @@ args = sys.argv[3:]
 
 
 def default_state():
-    return {"last_fired": {}, "session_tool_count": 0, "session_start_time": ""}
+    return {"last_fired": {}, "session_tool_count": 0, "session_start_time": "", "write_tool_count": 0, "nudge_streak": {"id": "", "count": 0}}
 
 
 def load_state():
@@ -323,6 +343,13 @@ def load_state():
         data["session_tool_count"] = 0
     if not isinstance(data.get("session_start_time", ""), str):
         data["session_start_time"] = ""
+    try:
+        data["write_tool_count"] = int(data.get("write_tool_count", 0))
+    except Exception:
+        data["write_tool_count"] = 0
+    streak = data.get("nudge_streak")
+    if not isinstance(streak, dict) or "id" not in streak or "count" not in streak:
+        data["nudge_streak"] = {"id": "", "count": 0}
     return data
 
 
@@ -362,16 +389,34 @@ if action == "ensure":
     print("ok")
 elif action == "prepare":
     event_name = args[0]
+    tool_name = args[1] if len(args) > 1 else ""
     if not data.get("session_start_time"):
         data["session_start_time"] = utc_now_iso()
     if event_name == "tool_use":
         data["session_tool_count"] = int(data.get("session_tool_count", 0)) + 1
+        if tool_name in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
+            data["write_tool_count"] = int(data.get("write_tool_count", 0)) + 1
     write_state(data)
     print("ok")
 elif action == "get_tool_count":
     print(int(data.get("session_tool_count", 0)))
 elif action == "get_session_start":
     print(data.get("session_start_time", ""))
+elif action == "get_write_count":
+    print(int(data.get("write_tool_count", 0)))
+elif action == "get_streak":
+    streak = data.get("nudge_streak", {"id": "", "count": 0})
+    print(f"{streak.get('id', '')} {streak.get('count', 0)}")
+elif action == "set_streak":
+    nid = args[0] if args else ""
+    streak = data.get("nudge_streak", {"id": "", "count": 0})
+    if streak.get("id") == nid:
+        streak["count"] = int(streak.get("count", 0)) + 1
+    else:
+        streak = {"id": nid, "count": 1}
+    data["nudge_streak"] = streak
+    write_state(data)
+    print("ok")
 elif action == "claim":
     nudge_id = args[0]
     cooldown_minutes = int(args[1])
@@ -593,12 +638,15 @@ deliver_nudge() {
   fi
 }
 
+TOOL_NAME="$(json_get_text_path "$PAYLOAD" "" tool_name)"
+
 with_state_lock state_action ensure >/dev/null 2>&1 || exit 0
-with_state_lock state_action prepare "$EVENT_TYPE" >/dev/null 2>&1 || exit 0
+with_state_lock state_action prepare "$EVENT_TYPE" "$TOOL_NAME" >/dev/null 2>&1 || exit 0
 
 TOOL_CALL_COUNT="$(state_action get_tool_count 2>/dev/null || printf '0\n')"
 SESSION_START_TIME="$(state_action get_session_start 2>/dev/null || printf '\n')"
 SESSION_DURATION_MINUTES="$(session_minutes_since "$SESSION_START_TIME")"
+WRITE_TOOL_COUNT="$(state_action get_write_count 2>/dev/null || printf '0\n')"
 
 FILE_PATH="$(json_get_text_path "$PAYLOAD" "" tool_input file_path)"
 if [[ -z "$FILE_PATH" ]]; then
@@ -626,7 +674,15 @@ while IFS= read -r nudge; do
   condition_met="$(evaluate_condition "$nudge_condition")"
   [[ "$condition_met" != "true" ]] && continue
 
+  streak_raw="$(state_action get_streak 2>/dev/null || printf ' 0\n')"
+  streak_count="${streak_raw##* }"
+  streak_id="${streak_raw% *}"
+  if [[ "$streak_id" == "$nudge_id" && "$streak_count" -ge 2 ]]; then
+    continue
+  fi
+
   if [[ "$(with_state_lock state_action claim "$nudge_id" "$nudge_cooldown" 2>/dev/null || printf 'false\n')" == "true" ]]; then
+    with_state_lock state_action set_streak "$nudge_id" >/dev/null 2>&1
     deliver_nudge "$nudge_message"
   fi
 done <<< "$MATCHING_NUDGES"
