@@ -307,8 +307,8 @@ install_gemini() {
 INSTALLED_CLAUDE=false
 INSTALLED_GEMINI=false
 
-[[ "$HAS_CLAUDE" == true ]] && install_claude
-[[ "$HAS_GEMINI" == true ]] && install_gemini
+if [[ "$HAS_CLAUDE" == true ]]; then install_claude; fi
+if [[ "$HAS_GEMINI" == true ]]; then install_gemini; fi
 
 header "Installation complete"
 success "Give a Nudge is installed and ready."
