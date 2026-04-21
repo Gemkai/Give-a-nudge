@@ -14,15 +14,14 @@ json_get() {
   local file="$1"
   local expr="$2"
 
-  if command -v jq >/dev/null 2>&1; then
-    jq -r "$expr" "$file" 2>/dev/null
-    return
-  fi
-
-  local py_cmd="python"
+  local py_cmd=""
   if command -v python3 >/dev/null 2>&1; then
     py_cmd="python3"
+  elif command -v python >/dev/null 2>&1; then
+    py_cmd="python"
   fi
+
+  [[ -z "$py_cmd" ]] && return 1
 
   "$py_cmd" - "$file" "$expr" <<'PY'
 import json
