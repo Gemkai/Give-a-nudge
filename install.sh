@@ -130,13 +130,13 @@ merge_json() {
   if [[ "$HAS_JQ" == true ]]; then
     tmp_patch="$(mktemp)"
     tmp_result="$(mktemp)"
-    trap 'rm -f "$tmp_patch" "$tmp_result"' RETURN
     echo "$patch_json" > "$tmp_patch"
     if jq -s '.[0] * .[1]' "$base_file" "$tmp_patch" > "$tmp_result"; then
       mv "$tmp_result" "$base_file"
+      rm -f "$tmp_patch"
       return 0
     fi
-    rm -f "$tmp_result"
+    rm -f "$tmp_patch" "$tmp_result"
     return 1
   fi
 

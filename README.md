@@ -57,9 +57,10 @@ For step-by-step manual setup without the script, see [install-manual.md](instal
 What you will see in your terminal:
 
 ```text
-nudge: .env file edited. Run /security-audit before committing to catch exposed secrets.
-nudge: session started. /scout explores your codebase | /health-monitor checks system state | /doctor runs workspace health check.
-nudge: long session (45+ min). A fresh context window may improve response quality - consider /compact.
+nudge: .env file edited. Before committing: verify .env is in .gitignore and grep staged files for secrets — look for or build a security-audit skill to automate this scan.
+nudge: session started. Try asking your CLI to map the codebase, summarize recent git changes, or run a workspace health check — look for or build codebase-exploration and health-check skills.
+nudge: long session (45+ min). A fresh context window may improve response quality — consider /compact.
+nudge: use /model to match the task — haiku for speed and cost, sonnet for balance, opus for deep reasoning. Mismatched model is the easiest token waste to fix.
 ```
 
 ---
