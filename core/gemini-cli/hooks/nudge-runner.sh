@@ -646,6 +646,8 @@ with_state_lock state_action prepare "$EVENT_TYPE" "$TOOL_NAME" >/dev/null 2>&1 
 TOOL_CALL_COUNT="$(state_action get_tool_count 2>/dev/null || printf '0\n')"
 SESSION_START_TIME="$(state_action get_session_start 2>/dev/null || printf '\n')"
 SESSION_DURATION_MINUTES="$(session_minutes_since "$SESSION_START_TIME")"
+# shellcheck disable=SC2034  # computed alongside the other session-context vars above;
+# no nudge rule currently keys on write count, kept for parity with get_tool_count/get_session_start
 WRITE_TOOL_COUNT="$(state_action get_write_count 2>/dev/null || printf '0\n')"
 
 FILE_PATH="$(json_get_text_path "$PAYLOAD" "" tool_input file_path)"

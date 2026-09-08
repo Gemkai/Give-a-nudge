@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Give a Nudge — smoke test
 # Usage: bash give-a-nudge/tests/nudge-test.sh
+#
+# shellcheck disable=SC2088  # file-wide: every "~/${env}/..." string below is pass/fail/skip
+# MESSAGE TEXT only (see check_file()'s $label vs $path split) -- never an expanded/tested path.
 
 PASS=0; FAIL=0; SKIP=0
 
@@ -37,12 +40,15 @@ echo "Give a Nudge — smoke test"
 echo "========================="
 
 # ── 1. Dependency check ──────────────────────────────────────────────────────
+# shellcheck disable=SC2034  # gates a future skip-JSON-tests branch; not wired up yet
 HAS_JSON=false
 if command -v jq &>/dev/null; then
   pass "jq available"
+  # shellcheck disable=SC2034  # gates a future skip-JSON-tests branch; not wired up yet
   HAS_JSON=true
 elif command -v python3 &>/dev/null || command -v python &>/dev/null; then
   pass "python available (jq fallback)"
+  # shellcheck disable=SC2034  # gates a future skip-JSON-tests branch; not wired up yet
   HAS_JSON=true
 else
   fail "neither jq nor python found — JSON tests will fail"
@@ -55,6 +61,7 @@ MY_HOME="${HOME:-$USERPROFILE}"
 [[ "$MY_HOME" == *"\\"* ]] && MY_HOME="$(echo "/$MY_HOME" | sed 's/\\/\//g' | sed 's/://')"
 
 for env in claude gemini; do
+  # shellcheck disable=SC2034  # STATE_PATH: reserved for a future per-env state-file check
   case "$env" in
     claude) HOOKS_DIR="$MY_HOME/.claude/hooks"; STATE_PATH="$MY_HOME/.claude/nudge-state.json" ;;
     gemini) HOOKS_DIR="$MY_HOME/.gemini/hooks"; STATE_PATH="$MY_HOME/.gemini/nudge-state.json" ;;
