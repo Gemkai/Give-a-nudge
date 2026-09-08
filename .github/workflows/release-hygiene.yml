@@ -30,3 +30,16 @@ jobs:
 
       - name: Run release regression tests
         run: bash tests/release-regression.sh
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Shellcheck every tracked shell script
+        run: |
+          # git ls-files, not find: only what's actually tracked/shipped, matching
+          # the same "scan what Git will commit" principle as the hygiene scanner.
+          mapfile -t scripts < <(git ls-files '*.sh')
+          shellcheck --severity=warning "${scripts[@]}"

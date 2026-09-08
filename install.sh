@@ -42,6 +42,7 @@ if command -v claude &>/dev/null; then
   info "claude CLI found: $(command -v claude)"
   HAS_CLAUDE=true
 elif [[ -d "$HOME/.claude" ]]; then
+  # shellcheck disable=SC2088  # cosmetic message text only, not a path that's expanded/used
   info "~/.claude/ directory found (Claude Code home detected without CLI in PATH)"
   HAS_CLAUDE=true
 fi
@@ -50,6 +51,7 @@ if command -v gemini &>/dev/null; then
   info "gemini CLI found: $(command -v gemini)"
   HAS_GEMINI=true
 elif [[ -d "$HOME/.gemini" ]]; then
+  # shellcheck disable=SC2088  # cosmetic message text only, not a path that's expanded/used
   info "~/.gemini/ directory found (Gemini CLI home detected without CLI in PATH)"
   HAS_GEMINI=true
 fi
@@ -304,7 +306,9 @@ install_gemini() {
 # =============================================================================
 # 5. Run installs
 # =============================================================================
+# shellcheck disable=SC2034  # tracked for a future install-summary line; not consumed yet
 INSTALLED_CLAUDE=false
+# shellcheck disable=SC2034  # tracked for a future install-summary line; not consumed yet
 INSTALLED_GEMINI=false
 
 if [[ "$HAS_CLAUDE" == true ]]; then install_claude; fi
